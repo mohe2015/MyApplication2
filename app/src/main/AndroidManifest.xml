@@ -6,13 +6,10 @@
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- If your app targets Android 13 (API level 33)
-         or higher, you must declare the NEARBY_WIFI_DEVICES permission. -->
-    <!-- If your app derives location information from
-         Wi-Fi APIs, don't include the "usesPermissionFlags"
-         attribute. -->
-    <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
-    android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission
+        android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation" />
 
     <application
         android:allowBackup="true"
@@ -23,6 +20,11 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication">
+        <receiver
+            android:name=".WiFiDirectBroadcastReceiver"
+            android:enabled="false"
+            android:exported="false"></receiver>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
