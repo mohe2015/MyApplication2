@@ -2,35 +2,34 @@ package com.example.myapplication
 
 import android.Manifest.permission.BLUETOOTH_CONNECT
 import android.Manifest.permission.BLUETOOTH_SCAN
-import android.app.Activity
-import android.bluetooth.BluetoothAdapter
-import android.bluetooth.BluetoothManager
 import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.net.wifi.p2p.WifiP2pManager
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.ActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.example.myapplication.ui.theme.MyApplicationTheme
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.MultiplePermissionsState
+import com.google.accompanist.permissions.PermissionState
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 
 private const val TAG = "MainActivity"
 
@@ -81,7 +80,6 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    SupportsWifiAware()
                     SupportsBluetoothLE()
                 }
             }
@@ -117,57 +115,111 @@ fun SupportsWifiAware() {
         Text("doesnt support wifi aware")
 }
 
-const val REQUEST_ENABLE_BT = 0
-
+@OptIn(ExperimentalPermissionsApi::class)
 @Preview
 @Composable
 fun SupportsBluetoothLE() {
-    val bluetoothLEAvailable =
-        LocalContext.current.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
-    val bluetoothManager: BluetoothManager =
-        LocalContext.current.getSystemService(BluetoothManager::class.java)
-    val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
-    if (bluetoothAdapter == null) {
-        // Device doesn't support Bluetooth
-    }
-    val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-    /*if (bluetoothAdapter?.isEnabled == false) {
-        LocalContext.current.startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT)
-    }*/
-    val result = remember { mutableStateOf<ActivityResult?>(null) }
-    //val bluetoothPermissionResult = remember { mutableStateOf<Map<String, Boolean>?>(null) }
-
-    val launcher =
-        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            result.value = it
+    val isInspection = LocalInspectionMode.current
+    val bluetoothPermissionsState = if (isInspection) {
+        object : MultiplePermissionsState {
+            override val allPermissionsGranted: Boolean = false
+            override val permissions: List<PermissionState> = emptyList()
+            override val revokedPermissions: List<PermissionState> = emptyList()
+            override val shouldShowRationale: Boolean = false
+            override fun launchMultiplePermissionRequest() {}
         }
-    val requestBluetoothPermissions =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-            launcher.launch(enableBtIntent)
-        }
-    Column {
-        Button(onClick = {
-            requestBluetoothPermissions.launch(
-                arrayOf(
-                    BLUETOOTH_SCAN,
-                    BLUETOOTH_CONNECT
-                )
+    } else {
+        rememberMultiplePermissionsState(
+            listOf(
+                BLUETOOTH_SCAN,
+                BLUETOOTH_CONNECT
             )
-        }) {
-            Text(text = "Take a picture")
-        }
-        if (bluetoothLEAvailable)
-            Text("supports bluetooth le")
-        else
-            Text("doesnt support bluetooth le")
-        result.value?.let { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                Text("bluetooth activated")
+        )
+    }
+
+    if (bluetoothPermissionsState.allPermissionsGranted) {
+        Text("Thanks! I can access your exact location :D")
+    } else {
+        Column {
+            val allPermissionsRevoked =
+                bluetoothPermissionsState.permissions.size ==
+                        bluetoothPermissionsState.revokedPermissions.size
+
+            val textToShow = if (!allPermissionsRevoked) {
+                // If not all the permissions are revoked, it's because the user accepted the COARSE
+                // location permission, but not the FINE one.
+                "Yay! Thanks for letting me access your approximate location. " +
+                        "But you know what would be great? If you allow me to know where you " +
+                        "exactly are. Thank you!"
+            } else if (bluetoothPermissionsState.shouldShowRationale) {
+                // Both location permissions have been denied
+                "Getting your exact location is important for this app. " +
+                        "Please grant us fine location. Thank you :D"
             } else {
-                Text("user denied to activate bluetooth")
+                // First time the user sees this feature or the user doesn't want to be asked again
+                "This feature requires location permission. Enable permission in app settings if you want it."
+            }
+
+            val buttonText = if (!allPermissionsRevoked) {
+                "Allow precise location"
+            } else {
+                "Request permissions"
+            }
+
+            Text(text = textToShow)
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(onClick = { bluetoothPermissionsState.launchMultiplePermissionRequest() }) {
+                Text(buttonText)
             }
         }
     }
+    /*
+        val bluetoothLEAvailable =
+            LocalContext.current.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
+        val bluetoothManager: BluetoothManager =
+            LocalContext.current.getSystemService(BluetoothManager::class.java)
+        val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
+        if (bluetoothAdapter == null) {
+            // Device doesn't support Bluetooth
+        }
+        val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+        /*if (bluetoothAdapter?.isEnabled == false) {
+            LocalContext.current.startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT)
+        }*/
+        val result = remember { mutableStateOf<ActivityResult?>(null) }
+        //val bluetoothPermissionResult = remember { mutableStateOf<Map<String, Boolean>?>(null) }
+
+        val launcher =
+            rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+                result.value = it
+            }
+        val requestBluetoothPermissions =
+            rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+                launcher.launch(enableBtIntent)
+            }
+        Column {
+            Button(onClick = {
+                requestBluetoothPermissions.launch(
+                    arrayOf(
+                        BLUETOOTH_SCAN,
+                        BLUETOOTH_CONNECT
+                    )
+                )
+            }) {
+                Text(text = "Take a picture")
+            }
+            if (bluetoothLEAvailable)
+                Text("supports bluetooth le")
+            else
+                Text("doesnt support bluetooth le")
+            result.value?.let { result ->
+                if (result.resultCode == Activity.RESULT_OK) {
+                    Text("bluetooth activated")
+                } else {
+                    Text("user denied to activate bluetooth")
+                }
+            }
+        }*/
 
 }
 
