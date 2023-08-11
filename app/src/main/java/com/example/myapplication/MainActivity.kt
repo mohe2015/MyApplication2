@@ -3,6 +3,7 @@ package com.example.myapplication
 import android.Manifest.permission.BLUETOOTH_CONNECT
 import android.Manifest.permission.BLUETOOTH_SCAN
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.IntentFilter
@@ -74,6 +75,15 @@ class MainActivity : ComponentActivity() {
         manager?.let {
             val c = it.initialize(this, mainLooper, null)
             receiver = WiFiDirectBroadcastReceiver(it, c, this)
+        }
+
+        val bluetoothLEAvailable =
+            packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
+        val bluetoothManager: BluetoothManager =
+            getSystemService(BluetoothManager::class.java)
+        val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
+        if (bluetoothAdapter != null) {
+            isBluetoothEnabled.value = toBluetoothState(bluetoothAdapter.state)
         }
 
         bluetoothBroadcastReceiver = BluetoothBroadcastReceiver()
@@ -180,7 +190,7 @@ fun SupportsBluetoothLE() {
                 "Request permissions"
             }
 
-            Text(text = if (isBluetoothEnabled.value) "Bluetooth enabled" else "Bluetooth disabled")
+            Text(text = "Bluetooth ${isBluetoothEnabled.value}")
             Text(text = textToShow)
             Spacer(modifier = Modifier.height(8.dp))
             Button(onClick = { bluetoothPermissionsState.launchMultiplePermissionRequest() }) {
@@ -189,11 +199,7 @@ fun SupportsBluetoothLE() {
         }
     }
     /*
-        val bluetoothLEAvailable =
-            LocalContext.current.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)
-        val bluetoothManager: BluetoothManager =
-            LocalContext.current.getSystemService(BluetoothManager::class.java)
-        val bluetoothAdapter: BluetoothAdapter? = bluetoothManager.adapter
+
         if (bluetoothAdapter == null) {
             // Device doesn't support Bluetooth
         }
