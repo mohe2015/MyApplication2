@@ -2,6 +2,7 @@ package com.example.myapplication
 
 import android.Manifest.permission.BLUETOOTH_CONNECT
 import android.Manifest.permission.BLUETOOTH_SCAN
+import android.bluetooth.BluetoothAdapter
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.IntentFilter
@@ -31,6 +32,7 @@ import com.google.accompanist.permissions.MultiplePermissionsState
 import com.google.accompanist.permissions.PermissionState
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 
+
 private const val TAG = "MainActivity"
 
 // https://developer.android.com/jetpack/compose/tutorial
@@ -53,6 +55,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private var receiver: BroadcastReceiver? = null
+    private var bluetoothBroadcastReceiver: BluetoothBroadcastReceiver? = null
 
     private val intentFilter = IntentFilter().apply {
         addAction(WifiP2pManager.WIFI_P2P_STATE_CHANGED_ACTION)
@@ -73,6 +76,12 @@ class MainActivity : ComponentActivity() {
             receiver = WiFiDirectBroadcastReceiver(it, c, this)
         }
 
+        bluetoothBroadcastReceiver = BluetoothBroadcastReceiver()
+        registerReceiver(
+            bluetoothBroadcastReceiver,
+            IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        )
+
         setContent {
             MyApplicationTheme {
                 // A surface container using the 'background' color from the theme
@@ -92,6 +101,10 @@ class MainActivity : ComponentActivity() {
         receiver?.also { receiver ->
             registerReceiver(receiver, intentFilter)
         }
+        registerReceiver(
+            bluetoothBroadcastReceiver,
+            IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED)
+        )
     }
 
     /* unregister the broadcast receiver */
@@ -100,6 +113,7 @@ class MainActivity : ComponentActivity() {
         receiver?.also { receiver ->
             unregisterReceiver(receiver)
         }
+        bluetoothBroadcastReceiver?.also { unregisterReceiver(it) }
     }
 
 }
@@ -166,6 +180,7 @@ fun SupportsBluetoothLE() {
                 "Request permissions"
             }
 
+            Text(text = if (isBluetoothEnabled.value) "Bluetooth enabled" else "Bluetooth disabled")
             Text(text = textToShow)
             Spacer(modifier = Modifier.height(8.dp))
             Button(onClick = { bluetoothPermissionsState.launchMultiplePermissionRequest() }) {
